@@ -43,7 +43,7 @@ Path to load content from -- Must be defined and '' or a string
 
 =cut
 
-has path => (is => 'ro'
+has path => (is => 'ro',
              isa => sub { die 'path undefined' unless defined $_[0]; 
                           die 'references not allowed' if ref $_[0]; } );
 
@@ -63,7 +63,7 @@ sub _build_content {
     open(FILE, '<', $self->path) or
         die 'FileError: ' . Cwd::abs_path($self->path) . ": $!";
     binmode FILE, ':utf8';
-    $content = join '', <FILE>;
+    my $content = join '', <FILE>;
     close FILE;
     return $content;
 }
@@ -123,7 +123,7 @@ Code to begin transaction, defaults to 'BEGIN;'
 
 =cut
 
-has begin_txn => is ('ro', default => 'BEGIN;');
+has begin_txn => (is => 'ro', default => 'BEGIN;');
 
 =head2 commit_txn
 
@@ -133,7 +133,7 @@ Useful if one needs to do two phase commit or similar
 
 =cut
 
-has commit_txn => is ('ro', default => 'COMMIT;');
+has commit_txn => (is => 'ro', default => 'COMMIT;');
 
 =head1 METHODS
 
