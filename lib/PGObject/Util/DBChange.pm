@@ -4,6 +4,13 @@ use 5.006;
 use strict;
 use warnings;
 
+use strict;
+use warnings;
+use PGObject::Util::DBChange::History;
+use Digest::SHA;
+use Cwd;
+use Moo;
+
 =head1 NAME
 
 PGObject::Util::DBChange - The great new PGObject::Util::DBChange!
@@ -28,25 +35,278 @@ Perhaps a little code snippet.
     my $foo = PGObject::Util::DBChange->new();
     ...
 
-=head1 EXPORT
+=head1 PROPERTIES
 
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
+=head2 path
 
-=head1 SUBROUTINES/METHODS
-
-=head2 function1
+Path to load content from -- Must be defined and '' or a string
 
 =cut
 
-sub function1 {
+has path => (is => 'ro',
+             isa => sub { die 'path undefined' unless defined $_[0]; 
+                          die 'references not allowed' if ref $_[0]; } );
+
+=head2 content
+
+Content of the file.  Can be specified at load, or is built by reading from the
+file.
+
+=cut
+
+has content => (is => 'lazy');
+
+sub _build_content {
+    my ($self) = @_;
+    my $file;
+    local $!;
+    open(FILE, '<', $self->path) or
+        die 'FileError: ' . Cwd::abs_path($self->path) . ": $!";
+    binmode FILE, ':utf8';
+    my $content = join '', <FILE>;
+    close FILE;
+    return $content;
 }
 
-=head2 function2
+=head2 succeeded (rwp)
+
+Undefined until run.  After run, 1 if success, 0 if failure.
 
 =cut
 
-sub function2 {
+has succeeded => (is => 'rwp');
+
+=head2 dependencies
+
+A list of other changes to apply first.  If strings are provided, these are
+turned into path objects.
+
+Currently these must be explicitly provided. Future bersions may read these from
+comments in the files themselves.
+
+=cut
+
+has dependencies => (is => 'ro',
+                     default => sub { [] },
+                     isa => sub {  die 'dependencies must be an arrayref' 
+                                           unless ref $_[0] =~ /ARRAY/;
+                                   for (@{$_[0]}) {
+                                       die 'dependency must be a PGObject::Util::Change object'
+                                           unless eval { $_->isa(__PACKAGE__) };
+                                   }
+                           }
+                    );
+                                           
+
+=head2 sha
+
+The sha hash of the normalized content (comments and whitespace lines stripped)
+of the file.
+
+=cut
+
+has sha => (is => 'lazy');
+
+sub _build_sha {
+    my ($self) = @_;
+    my $content = $self->content; 
+    my $normalized = join "\n",
+                     grep { /\S/ }
+                     map { my $string = $_; $string =~ s/--.*//; $string }
+                     split("\n", $content);
+    return Digest::SHA::sha512_base64($normalized);
+}
+
+=head2 begin_txn
+
+Code to begin transaction, defaults to 'BEGIN;'
+
+=cut
+
+has begin_txn => (is => 'ro', default => 'BEGIN;');
+
+=head2 commit_txn
+
+Code to commit transaction, defaults to 'COMMIT;'
+
+Useful if one needs to do two phase commit or similar
+
+=cut
+
+has commit_txn => (is => 'ro', default => 'COMMIT;');
+
+=head1 METHODS
+
+=head2 content_wrapped($before, $after)
+
+Returns content wrapped with before and after.
+
+=cut
+
+sub content_wrapped {
+    my ($self, $before, $after) = @_;
+    $before //= "";
+    $after //= "";
+    return $self->_wrap_transaction(
+        _wrap($self->content(1), $before, $after)
+    );
+}
+
+sub _wrap_transaction {
+    my ($self, $content) = @_;
+    $content = _wrap($content, $self->begin_txn, $self->commit_txn)
+       unless $self->no_transactions;
+    return $content;
+}
+
+sub _wrap {
+    my ($content, $before, $after) = @_;
+    return "$before\n$content\n$after";
+}
+
+=head2 is_applied($dbh)
+
+returns 1 if has already been applied, false if not
+
+=cut
+
+sub is_applied {
+    my ($self, $dbh) = @_;
+    my $sha = $self->sha;
+    my $sth = $dbh->prepare(
+        "SELECT * FROM db_patches WHERE sha = ?"
+    );
+    $sth->execute($sha);
+    my $retval = int $sth->rows;
+    $sth->finish;
+    return $retval;
+}
+
+=head2 run($dbh)
+
+Runs against the current dbh without tracking.
+
+=cut
+
+sub run {
+    my ($self, $dbh) = @_;
+    $dbh->do($self->_wrap_transaction($self->content)); # not raw
+}
+
+=head2 apply($dbh)
+
+Applies the current file to the db in the current dbh.
+
+=cut
+
+sub apply {
+    my ($self, $dbh, $log) = @_;
+    my $need_commit = $self->_need_commit($dbh);
+    my $before = "";
+    my $after;
+    my $sha = $dbh->quote($self->sha);
+    my $path = $dbh->quote($self->path);
+    my $no_transactions = $self->no_transactions;
+    if ($self->is_applied($dbh)){
+        $after = "
+              UPDATE db_patches
+                     SET last_updated = now()
+               WHERE sha = $sha;
+        ";
+    } else {
+        $after = "
+           INSERT INTO db_patches (sha, path, last_updated)
+           VALUES ($sha, $path, now());
+        ";
+    }
+    if ($no_transactions){
+        $dbh->do($after);
+        $after = "";
+        $dbh->commit if $need_commit;
+    }
+    my $success = eval {
+         $dbh->prepare($self->content_wrapped($before, $after))->execute();
+    };
+    $dbh->commit if $need_commit;
+    die "$DBI::state: $DBI::errstr" unless $success or $no_transactions;
+    $self->log($dbh) if $log;
+}
+
+sub log {
+    my ($self, $dbh) = @_;
+    $dbh->prepare("
+            INSERT INTO db_patch_log(when_applied, path, sha, sqlstate, error)
+            VALUES(now(), ?, ?, ?, ?)
+    ")->execute($self->path, $self->sha, $dbh->state, $dbh->errstr);
+    $dbh->commit if $self->_need_commit($dbh);
+}
+
+our $commit = 1;
+
+sub _need_commit{
+    my ($self, $dbh) = @_;
+    return $commit;
+}
+
+=head1 Functions (package-level)
+
+=head2 needs_init($dbh)
+
+Checks to see whether the schema has been initialized
+
+=cut
+
+sub needs_init {
+    my $dbh = pop @_;
+    my $count = $dbh->prepare("
+        select relname from pg_class
+         where relname = 'db_patches'
+               and pg_relation_is_visible(oid)
+    ")->execute();
+    return int($count);
+}
+
+=head2 init($dbh);
+
+Initializes the system.  Modifications are maintained through the History
+module.  Returns 0 if was up to date, 1 if was initialized.
+
+=cut
+
+sub init {
+    my $dbh = pop @_;
+    return update($dbh) unless needs_init($dbh);
+    my $success = $dbh->prepare("
+    CREATE TABLE db_patch_log (
+       when_applied timestamp primary key,
+       path text NOT NULL,
+       sha text NOT NULL,
+       sqlstate text not null,
+       error text
+    );
+    CREATE TABLE db_patches (
+       sha text primary key,
+       path text not null,
+       last_updated timestamp not null
+    );
+    ")->execute();
+    die "$DBI::state: $DBI::errstr" unless $success;
+
+    return update($dbh) || 1;
+}
+
+=head2 update($dbh)
+
+Updates the current schema to the most recent.
+
+=cut
+
+sub update {
+    my $dbh = pop @_;
+    my $applied_num = 0;
+    my @changes = __PACKAGE__::History::get_changes();
+    $applied_num += $_->apply($dbh) for @changes;
+    return $applied_num;
 }
 
 =head1 AUTHOR
@@ -94,6 +354,10 @@ L<http://search.cpan.org/dist/PGObject-Util-DBChange/>
 
 =head1 ACKNOWLEDGEMENTS
 
+Portions of this code were developed for LedgerSMB 1.5 and copied from
+appropriate sources there.
+
+Many thanks to Sedex Global for their sponsorship of portions of the module.
 
 =head1 LICENSE AND COPYRIGHT
 
