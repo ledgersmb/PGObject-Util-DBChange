@@ -47,6 +47,16 @@ has path => (is => 'ro',
              isa => sub { die 'path undefined' unless defined $_[0]; 
                           die 'references not allowed' if ref $_[0]; } );
 
+=head2 no_transactions
+
+If true, we assume success even if transaction fails
+
+Future versions may add additional checking possibilies instead
+
+=cut
+
+has no_transactions =>(is => 'ro');
+
 =head2 content
 
 Content of the file.  Can be specified at load, or is built by reading from the
@@ -89,7 +99,8 @@ comments in the files themselves.
 has dependencies => (is => 'ro',
                      default => sub { [] },
                      isa => sub {  die 'dependencies must be an arrayref' 
-                                           unless ref $_[0] =~ /ARRAY/;
+                                           if ref $_[0] !~ /ARRAY/
+                                              and defined $_[0];
                                    for (@{$_[0]}) {
                                        die 'dependency must be a PGObject::Util::Change object'
                                            unless eval { $_->isa(__PACKAGE__) };
@@ -148,7 +159,7 @@ sub content_wrapped {
     $before //= "";
     $after //= "";
     return $self->_wrap_transaction(
-        _wrap($self->content(1), $before, $after)
+        _wrap($self->content, $before, $after)
     );
 }
 
