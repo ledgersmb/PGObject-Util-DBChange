@@ -240,15 +240,17 @@ sub apply {
     };
     $dbh->commit if $need_commit;
     die "$DBI::state: $DBI::errstr" unless $success or $no_transactions;
-    $self->log($dbh) if $log;
+    $self->log(dbh => $dbh, state => $DBI::state, errstr => $DBI::errstr) 
+       if $log;
 }
 
 sub log {
-    my ($self, $dbh) = @_;
+    my ($self, %args) = @_;
+    my $dbh = $args{dbh};
     $dbh->prepare("
             INSERT INTO db_patch_log(when_applied, path, sha, sqlstate, error)
             VALUES(now(), ?, ?, ?, ?)
-    ")->execute($self->path, $self->sha, $dbh->state, $dbh->errstr);
+    ")->execute($self->path, $self->sha, $args{state}, $args{errstr});
     $dbh->commit if $self->_need_commit($dbh);
 }
 
@@ -272,9 +274,9 @@ sub needs_init {
     my $count = $dbh->prepare("
         select relname from pg_class
          where relname = 'db_patches'
-               and pg_relation_is_visible(oid)
+               and pg_table_is_visible(oid)
     ")->execute();
-    return int($count);
+    return !int($count);
 }
 
 =head2 init($dbh);
@@ -315,8 +317,8 @@ Updates the current schema to the most recent.
 sub update {
     my $dbh = pop @_;
     my $applied_num = 0;
-    my @changes = __PACKAGE__::History::get_changes();
-    $applied_num += $_->apply($dbh) for @changes;
+    #my @changes = __PACKAGE__::History::get_changes();
+    #$applied_num += $_->apply($dbh) for @changes;
     return $applied_num;
 }
 
