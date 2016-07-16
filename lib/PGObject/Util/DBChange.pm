@@ -17,7 +17,7 @@ PGObject::Util::DBChange - The great new PGObject::Util::DBChange!
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 

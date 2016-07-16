@@ -1,5 +1,8 @@
 Revision history for PGObject-Util-DBChange
 
+0.02	2016-07-16
+	Fixed missing files in tests
+
 0.01    Date/time
         First version, released on an unsuspecting world.
 
