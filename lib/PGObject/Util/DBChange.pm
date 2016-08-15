@@ -13,15 +13,15 @@ use Moo;
 
 =head1 NAME
 
-PGObject::Util::DBChange - The great new PGObject::Util::DBChange!
+PGObject::Util::DBChange - Track applied change files in the database
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = 0.02;
+our $VERSION = 0.03;
 
 
 =head1 SYNOPSIS
@@ -201,7 +201,7 @@ Runs against the current dbh without tracking.
 
 sub run {
     my ($self, $dbh) = @_;
-    $dbh->do($self->_wrap_transaction($self->content)); # not raw
+    $dbh->do($self->content); # not raw
 }
 
 =head2 apply($dbh)
