@@ -17,11 +17,11 @@ PGObject::Util::DBChange - The great new PGObject::Util::DBChange!
 
 =head1 VERSION
 
-Version 0.030.0
+Version 0.030.1
 
 =cut
 
-our $VERSION = '0.030.0';
+our $VERSION = '0.030.1';
 
 
 =head1 SYNOPSIS
