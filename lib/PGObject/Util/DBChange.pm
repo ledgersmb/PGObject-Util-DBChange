@@ -17,11 +17,11 @@ PGObject::Util::DBChange - The great new PGObject::Util::DBChange!
 
 =head1 VERSION
 
-Version 0.01
+Version 0.030.0
 
 =cut
 
-our $VERSION = 0.02;
+our $VERSION = '0.030.0';
 
 
 =head1 SYNOPSIS
@@ -374,7 +374,7 @@ Many thanks to Sedex Global for their sponsorship of portions of the module.
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2016 The LedgerSMB Core Team.
+Copyright 2016 Chris Travers.
 
 This program is distributed under the (Revised) BSD License:
 L<http://www.opensource.org/licenses/BSD-3-Clause>
