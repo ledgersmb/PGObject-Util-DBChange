@@ -1,5 +1,8 @@
 Revision history for PGObject-Util-DBChange
 
+0.04	2016-08-16
+	Fixing handling of multiple statements in an update file.
+
 0.03	2016-08-15
 	Transaction wrapping cannot possibly work given that a single $dbh->do
 	call cannot wrap transactions, so removing it for now. Also fixing

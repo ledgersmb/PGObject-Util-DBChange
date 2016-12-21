@@ -17,11 +17,11 @@ PGObject::Util::DBChange - Track applied change files in the database
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = 0.03;
+our $VERSION = 0.04;
 
 
 =head1 SYNOPSIS
@@ -236,12 +236,13 @@ sub apply {
         $dbh->commit if $need_commit;
     }
     my $success = eval {
-         $dbh->prepare($self->content_wrapped($before, $after))->execute();
+         $dbh->do($self->content_wrapped($before, $after));
     };
     $dbh->commit if $need_commit;
     die "$DBI::state: $DBI::errstr" unless $success or $no_transactions;
     $self->log(dbh => $dbh, state => $DBI::state, errstr => $DBI::errstr) 
        if $log;
+    return 1;
 }
 
 sub log {
