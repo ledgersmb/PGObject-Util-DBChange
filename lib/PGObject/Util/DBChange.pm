@@ -17,11 +17,11 @@ PGObject::Util::DBChange - Track applied change files in the database
 
 =head1 VERSION
 
-Version 0.050.0
+Version 0.050.1
 
 =cut
 
-our $VERSION = '0.050.0';
+our $VERSION = '0.050.1';
 
 
 =head1 SYNOPSIS
@@ -375,7 +375,7 @@ Many thanks to Sedex Global for their sponsorship of portions of the module.
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2016 Chris Travers.
+Copyright 2016, 2017 Chris Travers.
 
 This program is distributed under the (Revised) BSD License:
 L<http://www.opensource.org/licenses/BSD-3-Clause>

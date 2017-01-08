@@ -1,6 +1,9 @@
 Revision history for PGObject-Util-DBChange
 
 
+0.050.1 2017-01-08
+        Update copyright years
+
 0.050   2017-01-08
         Remove Makefile from MANIFEST
 	Change version number
