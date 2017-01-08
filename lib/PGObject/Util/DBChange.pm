@@ -1,6 +1,6 @@
 package PGObject::Util::DBChange;
 
-use 5.006;
+use 5.010; # double forward slash requires 5.10
 use strict;
 use warnings;
 
@@ -13,15 +13,15 @@ use Moo;
 
 =head1 NAME
 
-PGObject::Util::DBChange - The great new PGObject::Util::DBChange!
+PGObject::Util::DBChange - Track applied change files in the database
 
 =head1 VERSION
 
-Version 0.030.1
+Version 0.050.0
 
 =cut
 
-our $VERSION = '0.030.1';
+our $VERSION = '0.050.0';
 
 
 =head1 SYNOPSIS
@@ -201,7 +201,7 @@ Runs against the current dbh without tracking.
 
 sub run {
     my ($self, $dbh) = @_;
-    $dbh->do($self->_wrap_transaction($self->content)); # not raw
+    $dbh->do($self->content); # not raw
 }
 
 =head2 apply($dbh)
@@ -236,12 +236,13 @@ sub apply {
         $dbh->commit if $need_commit;
     }
     my $success = eval {
-         $dbh->prepare($self->content_wrapped($before, $after))->execute();
+         $dbh->do($self->content_wrapped($before, $after));
     };
     $dbh->commit if $need_commit;
     die "$DBI::state: $DBI::errstr" unless $success or $no_transactions;
     $self->log(dbh => $dbh, state => $DBI::state, errstr => $DBI::errstr) 
        if $log;
+    return 1;
 }
 
 sub log {

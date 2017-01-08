@@ -1,11 +1,23 @@
 Revision history for PGObject-Util-DBChange
 
-0.030.1 2017-01-08
-        Remove Makefile and ignore.txt from MANIFEST
 
-0.030.0 2016-12-16
-	Update copyright assignment
-	Harmonize version numbers across files
+0.050   2017-01-08
+        Remove Makefile from MANIFEST
+	Change version number
+	Increase minimum requirement (5.10 from 5.6) due to '//' operator
+
+0.040	2016-08-16
+	Fixing handling of multiple statements in an update file.
+        Fixing copyright notice
+        Harmonizing version numbers across files
+
+0.03	2016-08-15
+	Transaction wrapping cannot possibly work given that a single $dbh->do
+	call cannot wrap transactions, so removing it for now. Also fixing
+	boilerplate.
+
+0.02	2016-07-16
+	Fixed missing files in tests
 
 0.01    Date/time
         First version, released on an unsuspecting world.
