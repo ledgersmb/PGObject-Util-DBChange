@@ -17,11 +17,11 @@ PGObject::Util::DBChange - Track applied change files in the database
 
 =head1 VERSION
 
-Version 0.050.1
+Version 0.050.2
 
 =cut
 
-our $VERSION = '0.050.1';
+our $VERSION = '0.050.2';
 
 
 =head1 SYNOPSIS
