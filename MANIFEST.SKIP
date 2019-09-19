@@ -3,4 +3,4 @@ MYMETA.yml
 Makefile
 ignore.txt
 .gitignore
-
+.git/
