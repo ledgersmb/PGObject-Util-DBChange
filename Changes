@@ -1,5 +1,8 @@
 Revision history for PGObject-Util-DBChange
 
+0.050.4 2019-11-15
+        Fix missing Makefile.PL
+
 0.050.3 2019-09-19
         Fix Kwalitee issues
 
